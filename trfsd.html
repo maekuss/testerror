@@ -2,7 +2,6 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
-const serialize = require('node-serialize');
 
 const app = express();
 app.use(express.json());
@@ -20,7 +19,15 @@ app.get('/download', (req, res) => {
 
 // VULN 2: Insecure Deserialization — untrusted body passed to node-serialize
 app.post('/import', (req, res) => {
-  const obj = serialize.unserialize(req.body); // RCE via crafted payload
+  let obj;
+  try {
+    obj = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+  } catch (err) {
+    return res.status(400).json({ error: 'Invalid JSON' });
+  }
+  if (!obj || typeof obj !== 'object') {
+    return res.status(400).json({ error: 'Invalid input' });
+  }
   res.json({ imported: Object.keys(obj) });
 });
 
