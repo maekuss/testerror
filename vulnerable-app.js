@@ -47,10 +47,26 @@ app.get("/ping", (req, res) => {
 });
 
 // --- VULN 4: Reflected XSS -------------------------------------------------
+function escapeHtml(str) {
+  if (str === undefined || str === null) {
+    return "";
+  }
+  return String(str).replace(/[&<>"']/g, (m) => {
+    switch (m) {
+      case '&': return '&amp;';
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '"': return '&quot;';
+      case "'": return '&#39;';
+      default: return m;
+    }
+  });
+}
+
 app.get("/hello", (req, res) => {
   const name = req.query.name;
   // Unescaped user input reflected into the HTML response.
-  res.send("<h1>Hello " + name + "</h1>");
+  res.send("<h1>Hello " + escapeHtml(name) + "</h1>");
 });
 
 // --- VULN 5: Path Traversal ------------------------------------------------
