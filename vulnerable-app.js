@@ -5,7 +5,7 @@
 // static-analysis / SAST tool can be exercised against it. DO NOT deploy.
 
 const express = require("express");
-const { exec } = require("child_process");
+const { exec, execFile } = require("child_process");
 const mysql = require("mysql");
 const fs = require("fs");
 const path = require("path");
@@ -40,8 +40,15 @@ app.get("/user", (req, res) => {
 // --- VULN 3: OS Command Injection ------------------------------------------
 app.get("/ping", (req, res) => {
   const host = req.query.host;
-  // User input passed straight to a shell.
-  exec("ping -c 1 " + host, (err, stdout) => {
+  
+  // Validate host to prevent command injection and option injection.
+  // A valid hostname or IP address contains only alphanumeric characters, dots, hyphens, and colons.
+  // It should also not start with a hyphen to prevent option injection.
+  if (typeof host !== "string" || !/^[a-zA-Z0-9:][a-zA-Z0-9.:-]*$/.test(host)) {
+    return res.status(400).send("Invalid host");
+  }
+
+  execFile("ping", ["-c", "1", host], (err, stdout) => {
     res.type("text/plain").send(stdout || String(err));
   });
 });
