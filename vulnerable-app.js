@@ -29,9 +29,9 @@ const db = mysql.createConnection({
 // --- VULN 2: SQL Injection -------------------------------------------------
 app.get("/user", (req, res) => {
   const id = req.query.id;
-  // User input concatenated directly into the query.
-  const query = "SELECT * FROM users WHERE id = '" + id + "'";
-  db.query(query, (err, rows) => {
+  // User input passed as a parameter to prevent SQL Injection.
+  const query = "SELECT * FROM users WHERE id = ?";
+  db.query(query, [id], (err, rows) => {
     if (err) return res.status(500).send(String(err));
     res.json(rows);
   });
