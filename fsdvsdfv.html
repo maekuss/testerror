@@ -28,12 +28,18 @@
     // VULNERABLE IMPLEMENTATION — DO NOT USE IN PRODUCTION
     // This listener accepts messages from ANY origin and injects the data into the DOM without sanitization.
     window.addEventListener('message', (event) => {
-      // Shows the origin but FAILS to validate it (critical bug)
+      // Validate origin strictly
+      const allowedOrigins = [window.location.origin];
+      if (!allowedOrigins.includes(event.origin)) {
+        return;
+      }
+
+      // Shows the origin
       document.getElementById('origin').textContent = 'Last message origin: ' + event.origin;
 
-      // Dangerous sink: direct innerHTML assignment of untrusted data
+      // Safe sink: direct textContent assignment of untrusted data
       const incoming = typeof event.data === 'string' ? event.data : JSON.stringify(event.data);
-      document.getElementById('output').innerHTML = incoming;
+      document.getElementById('output').textContent = incoming;
     });
   </script>
 
