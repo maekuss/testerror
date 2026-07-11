@@ -56,8 +56,17 @@ app.get("/hello", (req, res) => {
 // --- VULN 5: Path Traversal ------------------------------------------------
 app.get("/file", (req, res) => {
   const name = req.query.name;
-  // No sanitisation — allows ../../ traversal.
-  const full = path.join(__dirname, "uploads", name);
+  if (typeof name !== "string") {
+    return res.status(400).send("invalid name");
+  }
+  const baseDir = path.join(__dirname, "uploads");
+  const full = path.join(baseDir, name);
+  const relative = path.relative(baseDir, full);
+
+  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+    return res.status(403).send("access denied");
+  }
+
   fs.readFile(full, "utf8", (err, data) => {
     if (err) return res.status(404).send("not found");
     res.type("text/plain").send(data);
