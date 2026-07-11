@@ -70,11 +70,137 @@ function hashPassword(pw) {
 }
 
 // --- VULN 7: Insecure deserialization / code execution ---------------------
+function safeEval(expr) {
+  if (typeof expr !== "string") {
+    throw new Error("Expression must be a string");
+  }
+
+  const tokens = [];
+  let i = 0;
+  while (i < expr.length) {
+    const char = expr[i];
+    if (/\s/.test(char)) {
+      i++;
+      continue;
+    }
+    if (/[0-9.]/.test(char)) {
+      let numStr = "";
+      while (i < expr.length && /[0-9.]/.test(expr[i])) {
+        numStr += expr[i];
+        i++;
+      }
+      const num = parseFloat(numStr);
+      if (isNaN(num)) {
+        throw new Error("Invalid number");
+      }
+      tokens.push({ type: "NUMBER", value: num });
+      continue;
+    }
+    if (["+", "-", "*", "/", "(", ")"].includes(char)) {
+      tokens.push({ type: "OPERATOR", value: char });
+      i++;
+      continue;
+    }
+    throw new Error("Invalid character in expression: " + char);
+  }
+
+  let tokenIndex = 0;
+
+  function peek() {
+    return tokens[tokenIndex];
+  }
+
+  function consume(expectedValue) {
+    const token = peek();
+    if (!token) {
+      throw new Error("Unexpected end of expression");
+    }
+    if (expectedValue !== undefined && token.value !== expectedValue) {
+      throw new Error(`Expected ${expectedValue} but got ${token.value}`);
+    }
+    tokenIndex++;
+    return token;
+  }
+
+  function parseExpression() {
+    let val = parseTerm();
+    while (true) {
+      const next = peek();
+      if (next && next.type === "OPERATOR" && (next.value === "+" || next.value === "-")) {
+        const op = consume().value;
+        const right = parseTerm();
+        if (op === "+") val += right;
+        else val -= right;
+      } else {
+        break;
+      }
+    }
+    return val;
+  }
+
+  function parseTerm() {
+    let val = parseFactor();
+    while (true) {
+      const next = peek();
+      if (next && next.type === "OPERATOR" && (next.value === "*" || next.value === "/")) {
+        const op = consume().value;
+        const right = parseFactor();
+        if (op === "*") {
+          val *= right;
+        } else {
+          if (right === 0) {
+            throw new Error("Division by zero");
+          }
+          val /= right;
+        }
+      } else {
+        break;
+      }
+    }
+    return val;
+  }
+
+  function parseFactor() {
+    const token = peek();
+    if (!token) {
+      throw new Error("Unexpected end of expression");
+    }
+    if (token.type === "NUMBER") {
+      consume();
+      return token.value;
+    }
+    if (token.type === "OPERATOR" && token.value === "(") {
+      consume("(");
+      const val = parseExpression();
+      consume(")");
+      return val;
+    }
+    if (token.type === "OPERATOR" && token.value === "-") {
+      consume("-");
+      return -parseFactor();
+    }
+    if (token.type === "OPERATOR" && token.value === "+") {
+      consume("+");
+      return parseFactor();
+    }
+    throw new Error("Unexpected token: " + token.value);
+  }
+
+  const result = parseExpression();
+  if (tokenIndex < tokens.length) {
+    throw new Error("Unexpected extra tokens");
+  }
+  return result;
+}
+
 app.post("/eval", (req, res) => {
   const expr = req.body.expr;
-  // Executes attacker-controlled input.
-  const result = eval(expr);
-  res.json({ result });
+  try {
+    const result = safeEval(expr);
+    res.json({ result });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 // --- VULN 8: Server-Side Request Forgery (SSRF) ----------------------------
