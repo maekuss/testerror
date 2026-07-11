@@ -16,8 +16,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 // --- VULN 1: Hardcoded credentials / secrets -------------------------------
-const DB_PASSWORD = "SuperSecret123!";
-const API_KEY = "PLACEHOLDER_HARDCODED_API_KEY_DO_NOT_USE";
+const DB_PASSWORD = process.env.DB_PASSWORD || "";
+const API_KEY = process.env.API_KEY || "";
 
 const db = mysql.createConnection({
   host: "localhost",
