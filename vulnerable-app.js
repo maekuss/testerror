@@ -91,6 +91,23 @@ app.get("/fetch", (req, res) => {
 
 // --- VULN 9: Missing authentication on a sensitive action ------------------
 app.post("/admin/delete-all", (req, res) => {
+  const authHeader = req.headers["authorization"];
+  const apiKeyHeader = req.headers["x-api-key"];
+  let key = null;
+  if (apiKeyHeader) {
+    key = apiKeyHeader;
+  } else if (authHeader) {
+    if (authHeader.startsWith("Bearer ")) {
+      key = authHeader.substring(7);
+    } else {
+      key = authHeader;
+    }
+  }
+
+  if (!key || key !== API_KEY) {
+    return res.status(401).send("Unauthorized");
+  }
+
   db.query("DELETE FROM users", () => res.send("all users deleted"));
 });
 
