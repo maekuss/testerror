@@ -26,9 +26,25 @@ app.post('/parse-xml', (req, res) => {
   res.json({ root: doc.root().name(), text: doc.root().text() });
 });
 
-// VULN 3: Prototype Pollution — untrusted object deep-merged into config
+// Reject payloads containing keys that could pollute Object.prototype
+function hasPollutedKeys(obj) {
+  if (obj === null || typeof obj !== 'object') return false;
+  for (const key of Object.keys(obj)) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      return true;
+    }
+    if (hasPollutedKeys(obj[key])) return true;
+  }
+  return false;
+}
+
+// Config update — untrusted object deep-merged into config after guarding
+// against prototype-pollution keys (__proto__, constructor, prototype).
 app.post('/config', (req, res) => {
-  _.merge(config, req.body); // {"__proto__":{"isAdmin":true}} pollutes Object.prototype
+  if (hasPollutedKeys(req.body)) {
+    return res.status(400).json({ ok: false, error: 'invalid payload' });
+  }
+  _.merge(config, req.body);
   res.json({ ok: true, config });
 });
 
