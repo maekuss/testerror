@@ -39,10 +39,9 @@ app.post('/login', (req, res) => {
   res.status(401).json({ error: 'bad credentials' });
 });
 
-// VULN 3: Broken JWT verification — 'none' algorithm accepted
 app.get('/me', (req, res) => {
   const token = (req.headers.authorization || '').replace('Bearer ', '');
-  const payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256', 'none'] });
+  const payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
   res.json({ user: payload.sub });
 });
 
