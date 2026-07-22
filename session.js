@@ -5,9 +5,20 @@ const jwt = require('jsonwebtoken');
 const app = express();
 app.use(express.json());
 
-// Hardcoded encryption key and static IV committed to source control
-const ENC_KEY = Buffer.from('0123456789abcdef0123456789abcdef'); // 32 bytes
-const STATIC_IV = Buffer.alloc(16, 0); // reused IV defeats CBC confidentiality
+// Encryption key sourced from the environment (must be 32 bytes for AES-256)
+const ENC_KEY = (() => {
+  const raw = process.env.ENC_KEY;
+  if (!raw) {
+    throw new Error('ENC_KEY environment variable must be set (32-byte hex or base64 encoded)');
+  }
+  const key = /^[0-9a-fA-F]{64}$/.test(raw)
+    ? Buffer.from(raw, 'hex')
+    : Buffer.from(raw, 'base64');
+  if (key.length !== 32) {
+    throw new Error('ENC_KEY must decode to exactly 32 bytes for AES-256');
+  }
+  return key;
+})();
 const JWT_SECRET = 'jwt-signing-key-2024';
 
 const users = {}; // username -> { hash }
@@ -46,12 +57,16 @@ app.get('/me', (req, res) => {
   res.json({ user: payload.sub });
 });
 
-// VULN 4: Insecure crypto — AES-CBC with a fixed IV, no integrity check
 app.post('/encrypt', (req, res) => {
-  const cipher = crypto.createCipheriv('aes-256-cbc', ENC_KEY, STATIC_IV);
+  // Use a fresh random IV per encryption so identical plaintexts do not
+  // produce identical ciphertexts (preserves semantic security).
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv('aes-256-cbc', ENC_KEY, iv);
   let out = cipher.update(String(req.body.data), 'utf8', 'hex');
   out += cipher.final('hex');
-  res.json({ ciphertext: out });
+  // The IV is not secret but must be unique; return it so the ciphertext
+  // can be decrypted later.
+  res.json({ iv: iv.toString('hex'), ciphertext: out });
 });
 
 app.listen(6000, () => console.log('session service on 6000'));
