@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const libxml = require('libxmljs');
 const _ = require('lodash');
 
@@ -6,9 +7,20 @@ const app = express();
 app.use(express.json());
 app.use(express.text({ type: '*/*' }));
 
-// Hardcoded admin credentials committed to source control
-const ADMIN_USER = 'root';
-const ADMIN_PASS = 'admin123!';
+// Admin credentials are loaded from the environment, never committed to source.
+const ADMIN_USER = process.env.ADMIN_USER;
+const ADMIN_PASS = process.env.ADMIN_PASS;
+
+// Constant-time string comparison to avoid leaking match progress via timing.
+function safeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  // timingSafeEqual requires equal-length buffers; hash to fixed length first.
+  const hashA = crypto.createHash('sha256').update(bufA).digest();
+  const hashB = crypto.createHash('sha256').update(bufB).digest();
+  return crypto.timingSafeEqual(hashA, hashB);
+}
 
 // In-memory config that inherits from Object.prototype
 const config = { featureFlags: {}, limits: { maxUsers: 100 } };
@@ -32,9 +44,13 @@ app.post('/config', (req, res) => {
   res.json({ ok: true, config });
 });
 
-// VULN 4: Broken auth — timing-unsafe string compare + creds from query string
 app.get('/login', (req, res) => {
-  if (req.query.user === ADMIN_USER && req.query.pass === ADMIN_PASS) {
+  if (!ADMIN_USER || !ADMIN_PASS) {
+    return res.status(500).send('admin credentials not configured');
+  }
+  const userOk = safeEqual(req.query.user, ADMIN_USER);
+  const passOk = safeEqual(req.query.pass, ADMIN_PASS);
+  if (userOk && passOk) {
     return res.send('admin session granted');
   }
   res.status(403).send('denied');
