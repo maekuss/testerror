@@ -16,8 +16,8 @@ def reports():
     owner = request.args.get("owner", "")
     conn = sqlite3.connect("reports.db")
     cur = conn.cursor()
-    query = f"SELECT id, title FROM reports WHERE owner = '{owner}'"
-    rows = cur.execute(query).fetchall()
+    query = "SELECT id, title FROM reports WHERE owner = ?"
+    rows = cur.execute(query, (owner,)).fetchall()
     return {"rows": rows}
 
 
