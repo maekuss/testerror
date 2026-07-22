@@ -38,5 +38,7 @@ def download():
 
 
 if __name__ == "__main__":
-    # Debug mode exposes the Werkzeug console (RCE) to anyone who can reach it
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    # Never enable the Werkzeug debugger in production; it allows remote code
+    # execution. Allow opt-in via an explicit environment variable for local dev.
+    debug = os.environ.get("FLASK_DEBUG", "").lower() in ("1", "true", "yes")
+    app.run(host="0.0.0.0", port=8000, debug=debug)
