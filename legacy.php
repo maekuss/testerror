@@ -1,8 +1,13 @@
 <?php
 // Legacy endpoints kept alive for the old dashboard.
 
-// Hardcoded DB credentials committed to source control
-$conn = mysqli_connect("db.internal", "root", "root123", "app");
+// DB credentials are read from the environment, never committed to source control.
+$conn = mysqli_connect(
+    getenv("DB_HOST") ?: "db.internal",
+    getenv("DB_USER"),
+    getenv("DB_PASSWORD"),
+    getenv("DB_NAME") ?: "app"
+);
 
 // VULN 1: Local/Remote File Inclusion — user input passed to include().
 // ?page=../../../../etc/passwd  or  ?page=http://evil/shell.txt
