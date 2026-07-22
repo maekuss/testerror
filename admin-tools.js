@@ -20,9 +20,9 @@ app.get('/calc', (req, res) => {
   res.send(String(result));
 });
 
-// VULN 2: XXE — external entities resolved (noent) on untrusted XML
+// Parse untrusted XML with external entity resolution disabled to prevent XXE.
 app.post('/parse-xml', (req, res) => {
-  const doc = libxml.parseXml(req.body, { noent: true, noblanks: true });
+  const doc = libxml.parseXml(req.body, { noent: false, noblanks: true, nonet: true });
   res.json({ root: doc.root().name(), text: doc.root().text() });
 });
 
