@@ -25,8 +25,9 @@ def reports():
 @app.route("/greet")
 def greet():
     name = request.args.get("name", "guest")
-    template = f"<h1>Welcome {name}</h1>"  # ?name={{7*7}} -> Jinja2 RCE
-    return render_template_string(template)
+    # Render user input as data, not as template source, so it is escaped
+    # rather than evaluated. This prevents Jinja2 SSTI/RCE.
+    return render_template_string("<h1>Welcome {{ name }}</h1>", name=name)
 
 
 # VULN 3: Path Traversal — user-controlled filename joined without validation
