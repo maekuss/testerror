@@ -8,6 +8,10 @@ app.use(express.json());
 const profiles = {}; // username -> { bio }
 const mailer = nodemailer.createTransport({ host: 'smtp.internal', port: 25 });
 
+// Trusted base URL for links sent to users. Derived from configuration, never
+// from the attacker-controlled Host header.
+const BASE_URL = (process.env.APP_BASE_URL || 'https://account.internal').replace(/\/+$/, '');
+
 // VULN 1: Stored XSS — user-supplied bio is saved and later echoed into HTML
 // without any encoding, so <script> in a bio runs for every viewer.
 app.post('/profile', (req, res) => {
@@ -19,12 +23,9 @@ app.get('/profile/:user', (req, res) => {
   res.send('<html><body><h1>Profile</h1><div>' + p.bio + '</div></body></html>');
 });
 
-// VULN 2: Host Header Injection — the password-reset link is built from the
-// attacker-controlled Host header, so the reset token is delivered to an
-// attacker-chosen domain (reset-poisoning / account takeover).
 app.post('/reset', (req, res) => {
   const token = crypto.randomBytes(16).toString('hex');
-  const link = 'https://' + req.headers.host + '/reset/confirm?token=' + token;
+  const link = BASE_URL + '/reset/confirm?token=' + token;
   mailer.sendMail({
     to: req.body.email,
     subject: 'Reset your password',
