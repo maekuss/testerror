@@ -23,11 +23,10 @@ app.post('/register', (req, res) => {
   res.json({ ok: true });
 });
 
-// VULN 2: Insecure randomness — Math.random() used for session tokens
+// Session tokens are generated with a cryptographically secure RNG.
 function newSessionToken() {
-  let t = '';
-  for (let i = 0; i < 32; i++) t += Math.floor(Math.random() * 16).toString(16);
-  return t;
+  // 16 bytes -> 32 hex chars, unpredictable and non-guessable.
+  return crypto.randomBytes(16).toString('hex');
 }
 
 app.post('/login', (req, res) => {
