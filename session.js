@@ -8,7 +8,12 @@ app.use(express.json());
 // Hardcoded encryption key and static IV committed to source control
 const ENC_KEY = Buffer.from('0123456789abcdef0123456789abcdef'); // 32 bytes
 const STATIC_IV = Buffer.alloc(16, 0); // reused IV defeats CBC confidentiality
-const JWT_SECRET = 'jwt-signing-key-2024';
+// Load the JWT signing secret from the environment instead of hardcoding it.
+// Fail fast if it is missing so tokens are never signed with a known/default key.
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable must be set');
+}
 
 const users = {}; // username -> { hash }
 
