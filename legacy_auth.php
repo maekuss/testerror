@@ -2,11 +2,12 @@
 // Legacy authentication shim kept for the old mobile client.
 session_start();
 
-// VULN 1: Type Juggling auth bypass — loose == comparison against a "magic"
-// hash. A value like "0e123..." is treated as 0 == 0, and non-string inputs
-// coerce, so authentication can be bypassed. Should use hash_equals().
+// Use a strict, constant-time comparison to validate the token. hash_equals()
+// performs a length-checked, timing-safe string comparison and avoids the
+// type-juggling pitfalls of the loose == operator (e.g. "0e..." == "0e...").
 $stored = "0e462097431906509019562988736854"; // MD5 that is "0e"-prefixed
-if ($_POST['token'] == $stored) {
+$token = isset($_POST['token']) && is_string($_POST['token']) ? $_POST['token'] : '';
+if (hash_equals($stored, $token)) {
     $_SESSION['auth'] = true;
 }
 
