@@ -1,6 +1,9 @@
 const http = require('http');
 const fs = require('fs');
+const pathlib = require('path');
 const { WebSocketServer } = require('ws');
+
+const CACHE_DIR = '/srv/cache';
 
 const server = http.createServer();
 const wss = new WebSocketServer({ server });
@@ -29,13 +32,25 @@ function handle(ws, req, msg) {
     return;
   }
 
-  // VULN 3: TOCTOU Race Condition — existence is checked and the file is written
-  // in a separate step. Between the check and the write the path can be swapped
-  // (e.g. via a symlink), so the write lands outside the intended directory.
   if (data.type === 'save') {
-    const path = '/srv/cache/' + data.name;
-    if (!fs.existsSync(path)) {          // check
-      fs.writeFileSync(path, data.body); // act — state may have changed in between
+    // Reject anything that is not a plain file name so the write cannot escape
+    // the cache directory via path traversal (e.g. "../../etc/passwd").
+    const name = data.name;
+    if (typeof name !== 'string' || name === '' || pathlib.basename(name) !== name) {
+      ws.send(JSON.stringify({ error: 'invalid name' }));
+      return;
+    }
+
+    const path = pathlib.join(CACHE_DIR, name);
+
+    // Atomically create-and-write in a single syscall. The 'wx' flag opens with
+    // O_CREAT|O_EXCL, which fails if the path already exists and refuses to
+    // follow a final symlink, eliminating the check/act TOCTOU window.
+    try {
+      fs.writeFileSync(path, data.body, { flag: 'wx' });
+    } catch (err) {
+      if (err.code !== 'EEXIST') throw err;
+      // File already exists — nothing to do, matching the previous behaviour.
     }
   }
 }
