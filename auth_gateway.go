@@ -2,6 +2,7 @@ package main
 
 import (
 	"compress/gzip"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -14,13 +15,16 @@ var hmacKey = []byte("gateway-signing-key")
 // Hardcoded API key
 const apiKey = "sk_live_9f8e7d6c5b4a"
 
-// VULN 1: JWT Algorithm Confusion — the keyfunc returns the HMAC secret without
-// ever checking token.Method, so an attacker can sign with HS256 using the
-// known/public key material (or downgrade the alg) and forge valid tokens.
+// verifyToken parses and validates a JWT. The signing method is pinned to HMAC
+// so an attacker cannot swap the alg header (e.g. RSA -> HS256) and forge a
+// token signed with the HMAC secret.
 func verifyToken(tokenStr string) (*jwt.Token, error) {
 	return jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
-		return hmacKey, nil // no alg pinning — accepts whatever the token claims
-	})
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
+		return hmacKey, nil
+	}, jwt.WithValidMethods([]string{"HS256"}))
 }
 
 func meHandler(w http.ResponseWriter, r *http.Request) {
