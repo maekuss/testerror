@@ -26,14 +26,19 @@ resource "aws_security_group" "open" {
   }
 }
 
-# VULN 3: Unencrypted, publicly accessible RDS with a hardcoded master password.
+variable "db_password" {
+  description = "Master password for the production RDS instance. Supply via TF_VAR_db_password or a secrets manager; never commit a literal value."
+  type        = string
+  sensitive   = true
+}
+
 resource "aws_db_instance" "prod" {
   engine              = "postgres"
   instance_class      = "db.t3.large"
   username            = "admin"
-  password            = "SuperSecret123!" # hardcoded secret committed to source
-  storage_encrypted   = false             # no encryption at rest
-  publicly_accessible = true              # reachable from the internet
+  password            = var.db_password # sourced from a secret, not hardcoded
+  storage_encrypted   = true            # encrypt data at rest
+  publicly_accessible = false           # not reachable from the internet
 }
 
 # VULN 4: Unencrypted EBS volume.
