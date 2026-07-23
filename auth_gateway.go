@@ -52,15 +52,28 @@ func forwardLogin(user, pass string) (*http.Response, error) {
 	})
 }
 
-// VULN 4: Decompression Bomb — a gzip request body is fully read with no size
-// limit, so a tiny payload can expand to gigabytes and exhaust memory (DoS).
+// maxImportSize caps the amount of decompressed data accepted by importHandler
+// to guard against decompression bombs.
+const maxImportSize = 10 << 20 // 10 MiB
+
 func importHandler(w http.ResponseWriter, r *http.Request) {
 	gz, err := gzip.NewReader(r.Body)
 	if err != nil {
 		http.Error(w, "bad gzip", http.StatusBadRequest)
 		return
 	}
-	data, _ := io.ReadAll(gz) // no io.LimitReader — unbounded
+	defer gz.Close()
+	// Bound the decompressed size to avoid a decompression bomb exhausting memory.
+	// Read one extra byte so we can detect payloads that exceed the limit.
+	data, err := io.ReadAll(io.LimitReader(gz, maxImportSize+1))
+	if err != nil {
+		http.Error(w, "bad gzip", http.StatusBadRequest)
+		return
+	}
+	if len(data) > maxImportSize {
+		http.Error(w, "payload too large", http.StatusRequestEntityTooLarge)
+		return
+	}
 	w.Write([]byte("imported bytes"))
 	_ = data
 }
