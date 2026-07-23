@@ -12,9 +12,8 @@ spec:
       labels:
         app: web
     spec:
-      # VULN 4: shares the host's network and PID namespaces with the pod
-      hostNetwork: true
-      hostPID: true
+      hostNetwork: false
+      hostPID: false
       containers:
         - name: web
           image: corp/web:latest # VULN 5: mutable :latest tag, no digest pinning
