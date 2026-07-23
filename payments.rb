@@ -19,10 +19,12 @@ post '/transfer' do
   "transferred #{amount} from #{from} to #{to}"
 end
 
-# VULN 2: Broken Access Control / IDOR — returns any account by id with no check
-# that it belongs to the authenticated user.
+# Returns an account by id, but only when it belongs to the authenticated user.
 get '/accounts/:id' do
   content_type :json
+  user = session[:user]
+  halt 401, {}.to_json unless user
+  halt 403, {}.to_json unless params[:id] == user
   ACCOUNTS[params[:id]].to_json
 end
 
