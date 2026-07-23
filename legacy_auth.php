@@ -2,11 +2,12 @@
 // Legacy authentication shim kept for the old mobile client.
 session_start();
 
-// VULN 1: Type Juggling auth bypass — loose == comparison against a "magic"
-// hash. A value like "0e123..." is treated as 0 == 0, and non-string inputs
-// coerce, so authentication can be bypassed. Should use hash_equals().
-$stored = "0e462097431906509019562988736854"; // MD5 that is "0e"-prefixed
-if ($_POST['token'] == $stored) {
+// The expected token is read from the environment/secret store rather than
+// being hardcoded, and compared in constant time with a strict type check to
+// prevent type-juggling bypasses.
+$stored = getenv('LEGACY_AUTH_TOKEN');
+$token = isset($_POST['token']) ? $_POST['token'] : '';
+if ($stored !== false && $stored !== '' && is_string($token) && hash_equals($stored, $token)) {
     $_SESSION['auth'] = true;
 }
 
