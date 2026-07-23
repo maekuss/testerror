@@ -21,9 +21,10 @@ spec:
           securityContext:
             # VULN 1: privileged container — full access to host devices/kernel
             privileged: true
-            # VULN 2: runs as root and permits privilege escalation
-            runAsUser: 0
-            allowPrivilegeEscalation: true
+            # Run as a non-root user and disallow privilege escalation
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
             capabilities:
               add: ["SYS_ADMIN", "NET_ADMIN"]
           env:
