@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      # VULN 4: shares the host's network and PID namespaces with the pod
+      hostNetwork: true
+      hostPID: true
+      containers:
+        - name: web
+          image: corp/web:latest # VULN 5: mutable :latest tag, no digest pinning
+          securityContext:
+            # VULN 1: privileged container — full access to host devices/kernel
+            privileged: true
+            # VULN 2: runs as root and permits privilege escalation
+            runAsUser: 0
+            allowPrivilegeEscalation: true
+            capabilities:
+              add: ["SYS_ADMIN", "NET_ADMIN"]
+          env:
+            # VULN 3: hardcoded secret embedded directly in the manifest
+            - name: DB_PASSWORD
+              value: "Pa$$w0rd!2024"
+          volumeMounts:
+            - name: host-root
+              mountPath: /host
+      volumes:
+        # VULN 6: mounts the entire host filesystem into the container
+        - name: host-root
+          hostPath:
+            path: /
