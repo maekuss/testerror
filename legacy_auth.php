@@ -10,10 +10,10 @@ if ($_POST['token'] == $stored) {
     $_SESSION['auth'] = true;
 }
 
-// VULN 2: Variable overwrite via extract() — every request parameter becomes a
-// local variable, letting an attacker inject $authenticated directly.
-$authenticated = false;
-extract($_GET);                       // ?authenticated=1
+// Authentication state is derived solely from the server-side session so that
+// request parameters can never overwrite it. Do NOT use extract($_GET) here:
+// it would let an attacker inject $authenticated directly via the query string.
+$authenticated = !empty($_SESSION['auth']);
 if ($authenticated) {
     echo "welcome admin\n";
 }
