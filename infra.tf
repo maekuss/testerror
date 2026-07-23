@@ -1,17 +1,21 @@
 # Production infrastructure (AWS)
 
-# VULN 1: Publicly readable S3 bucket — backup objects exposed to the internet.
+# Backups bucket — private, with public access fully blocked.
 resource "aws_s3_bucket" "backups" {
   bucket = "corp-prod-backups"
-  acl    = "public-read"
+}
+
+resource "aws_s3_bucket_acl" "backups" {
+  bucket = aws_s3_bucket.backups.id
+  acl    = "private"
 }
 
 resource "aws_s3_bucket_public_access_block" "backups" {
   bucket                  = aws_s3_bucket.backups.id
-  block_public_acls       = false
-  block_public_policy     = false
-  ignore_public_acls      = false
-  restrict_public_buckets = false
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
 # VULN 2: Security group open to the entire internet on every port (incl. SSH).
