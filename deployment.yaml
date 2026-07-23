@@ -30,11 +30,3 @@ spec:
             # VULN 3: hardcoded secret embedded directly in the manifest
             - name: DB_PASSWORD
               value: "Pa$$w0rd!2024"
-          volumeMounts:
-            - name: host-root
-              mountPath: /host
-      volumes:
-        # VULN 6: mounts the entire host filesystem into the container
-        - name: host-root
-          hostPath:
-            path: /
