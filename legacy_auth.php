@@ -23,6 +23,12 @@ if ($authenticated) {
 $pattern = '/(\w+)/e';
 echo preg_replace($pattern, $_GET['code'], "match"); // ?code=system('id')
 
-// VULN 4: RCE via assert() — a string passed to assert() is executed as PHP.
-assert($_GET['check']);               // ?check=system('id')
+// VULN 4 (FIXED): Never pass user input to assert(). A string argument is
+// executed as PHP code on affected versions/configurations, allowing RCE.
+// Perform an explicit, safe check on the supplied value instead of evaluating it.
+$check = isset($_GET['check']) ? (string) $_GET['check'] : '';
+if ($check !== '') {
+    // Treat the parameter strictly as data, never as code.
+    echo "check=" . htmlspecialchars($check, ENT_QUOTES, 'UTF-8') . "\n";
+}
 ?>
