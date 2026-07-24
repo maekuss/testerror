@@ -2,11 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-// VULN 1: Stack buffer overflow — attacker input is copied into a fixed-size
-// stack buffer with no bounds check, corrupting the stack/return address.
 void handle_name(const char *input) {
     char name[64];
-    strcpy(name, input); // no length check
+    snprintf(name, sizeof(name), "%s", input); // bounded copy, always NUL-terminated
     printf("hello %s\n", name);
 }
 
